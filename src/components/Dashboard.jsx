@@ -76,6 +76,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [socketStatus, setSocketStatus] = useState('idle');
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatMode, setNewChatMode] = useState('chat');
+  const [groupStep, setGroupStep] = useState(1);
   const [allUsers, setAllUsers] = useState([]);
   const [chatSearch, setChatSearch] = useState('');
   const [contactIdentifier, setContactIdentifier] = useState('');
@@ -416,6 +417,7 @@ const Dashboard = ({ user, onLogout }) => {
       setContactMessage('');
       setSelectedUserIds([]);
       setGroupName('');
+      setGroupStep(1);
       setNewChatMode('chat');
       setShowNewChat(true);
     } catch (err) {
@@ -454,6 +456,7 @@ const Dashboard = ({ user, onLogout }) => {
       setChatSearch('');
       setGroupName('');
       setSelectedUserIds([]);
+      setGroupStep(1);
       setNewChatMode('group');
       setShowNewChat(true);
     } catch (err) {
@@ -933,150 +936,210 @@ const Dashboard = ({ user, onLogout }) => {
       )}
 
       {showNewChat && (
-        <div style={styles.modalOverlay} onClick={() => setShowNewChat(false)}>
-          <div className="modal-card" style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-            <div className="d-flex justify-content-between align-items-center mb-3">
+        <div style={styles.wpPanel} onClick={() => setShowNewChat(false)}>
+          <div style={styles.wpPanelInner} onClick={(e) => e.stopPropagation()}>
+
+            {/* ── GREEN HEADER ── */}
+            <div style={styles.wpHeader}>
+              <button onClick={() => {
+                if (newChatMode === 'group' && groupStep === 2) { setGroupStep(1); setChatSearch(''); }
+                else setShowNewChat(false);
+              }} style={styles.wpBackBtn}>
+                <ArrowLeft size={20} color="#fff" />
+              </button>
               <div>
-                <h6 className="m-0 fw-bold">{newChatMode === 'group' ? 'New group' : 'New chat'}</h6>
-                <small className="text-muted">{newChatMode === 'group' ? 'Create a group conversation' : 'Choose someone to message'}</small>
+                <div style={styles.wpHeaderTitle}>
+                  {newChatMode === 'group'
+                    ? (groupStep === 1 ? 'Add group participants' : 'New group')
+                    : 'New chat'}
+                </div>
+                {newChatMode === 'group' && groupStep === 1 && (
+                  <div style={styles.wpHeaderSub}>{selectedUserIds.length} of {allUsers.length} selected</div>
+                )}
               </div>
-              <button className="btn btn-sm btn-light d-flex align-items-center justify-content-center" onClick={() => setShowNewChat(false)} style={{ width: '30px', height: '30px' }}>
-                <X size={16} />
-              </button>
             </div>
 
-            <div className="d-flex mb-3" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-              <button
-                className="btn btn-sm flex-grow-1"
-                onClick={() => setNewChatMode('chat')}
-                style={{
-                  backgroundColor: newChatMode === 'chat' ? 'rgba(0,168,132,0.15)' : 'transparent',
-                  color: newChatMode === 'chat' ? '#00a884' : 'var(--text-secondary)',
-                  border: 'none', borderRadius: '999px', marginRight: '6px',
-                }}
-              >
-                Chats
-              </button>
-              <button
-                className="btn btn-sm flex-grow-1"
-                onClick={() => setNewChatMode('group')}
-                style={{
-                  backgroundColor: newChatMode === 'group' ? 'rgba(0,168,132,0.15)' : 'transparent',
-                  color: newChatMode === 'group' ? '#00a884' : 'var(--text-secondary)',
-                  border: 'none', borderRadius: '999px',
-                }}
-              >
-                Groups
-              </button>
-            </div>
-
-            <div className="position-relative mb-3">
-              <Search size={15} color="var(--text-secondary)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
-              <input
-                type="text"
-                placeholder={newChatMode === 'group' ? 'Search contacts to add' : 'Search contacts'}
-                value={chatSearch}
-                onChange={(e) => setChatSearch(e.target.value)}
-                className="form-control form-control-sm"
-                style={{ paddingLeft: '34px', borderRadius: '999px', backgroundColor: 'var(--bg-search)', border: 'none', color: 'var(--text-primary)' }}
-              />
-            </div>
-
-            {newChatMode === 'chat' ? (
-              <>
-                <form onSubmit={addContact} className="mb-3">
-                  <label className="form-label small text-muted">Add a new contact</label>
-                  <div className="d-flex gap-2">
-                    <input
-                      type="text"
-                      value={contactIdentifier}
-                      onChange={(e) => setContactIdentifier(e.target.value)}
-                      placeholder="Email or phone number"
-                      className="form-control form-control-sm"
-                      style={{ borderRadius: '8px' }}
-                    />
-                    <button type="submit" className="btn btn-sm text-white" disabled={contactLoading} style={{ backgroundColor: '#00a884', borderRadius: '8px', whiteSpace: 'nowrap' }}>
-                      {contactLoading ? <Loader2 size={14} className="spin-icon" /> : 'Add'}
-                    </button>
-                  </div>
-                  {contactMessage && <div className="mt-2 small text-danger">{contactMessage}</div>}
-                </form>
-
-                <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                {allUsers.length === 0 && <div className="text-muted text-center p-3">No conversations yet.</div>}
-                {allUsers
-                  .filter((u) => {
-                    const term = chatSearch.toLowerCase();
-                    if (!term) return true;
-                    return (u.full_name || u.email || '').toLowerCase().includes(term);
-                  })
-                  .map((u) => (
-                    <div key={u.id} style={{ ...styles.userListItem, color: 'var(--text-primary)' }} onClick={() => startChatWith(u)}>
-                      <Avatar url={u.profile_picture_url} isGroup={false} />
-                      <div className="ms-3 flex-grow-1">
-                        <div className="fw-bold" style={{ color: 'var(--text-primary)' }}>{u.full_name || u.email}</div>
-                        <small className={u.is_online ? 'text-success' : 'text-muted'}>
-                          {u.is_online ? 'online' : 'offline'}
-                        </small>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
+            {/* ── SEARCH BAR ── */}
+            {!(newChatMode === 'group' && groupStep === 2) && (
+              <div style={styles.wpSearchWrap}>
+                <Search size={16} color="#8696a0" style={{ flexShrink: 0 }} />
                 <input
+                  autoFocus
                   type="text"
-                  placeholder="Group name"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  className="form-control mb-3"
-                  style={{ borderRadius: '8px' }}
+                  placeholder={newChatMode === 'group' ? 'Search contacts' : 'Search name or number'}
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  style={styles.wpSearchInput}
                 />
+                {chatSearch && (
+                  <button onClick={() => setChatSearch('')} style={styles.wpClearBtn}>
+                    <X size={14} color="#8696a0" />
+                  </button>
+                )}
+              </div>
+            )}
 
-                <div className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
-                  Select members ({selectedUserIds.length} selected)
-                </div>
+            {/* ── SELECTED CHIPS (group step 1) ── */}
+            {newChatMode === 'group' && groupStep === 1 && selectedUserIds.length > 0 && (
+              <div style={styles.wpChipsRow}>
+                {selectedUserIds.map((id) => {
+                  const u = allUsers.find((x) => x.id === id);
+                  if (!u) return null;
+                  return (
+                    <div key={id} style={styles.wpChip}>
+                      <Avatar url={u.profile_picture_url} isGroup={false} size={28} iconSize={12} />
+                      <span style={styles.wpChipName}>{u.full_name || u.email}</span>
+                      <button onClick={() => toggleUserSelection(id)} style={styles.wpChipRemove}>
+                        <X size={11} color="#fff" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-                <div style={{ maxHeight: '240px', overflowY: 'auto', marginBottom: '14px' }}>
-                  {allUsers.length === 0 && <div className="text-muted text-center p-3">No conversations yet.</div>}
+            {/* ── BODY ── */}
+            <div style={styles.wpBody}>
+
+              {/* NEW CHAT MODE */}
+              {newChatMode === 'chat' && (
+                <>
+                  {/* Add new contact row */}
+                  <div style={styles.wpSectionLabel}>ADD TO TALKBOX</div>
+                  <form onSubmit={addContact}>
+                    <div style={styles.wpNewContactRow}>
+                      <div style={styles.wpNewContactIcon}>
+                        <UserPlus size={22} color="#00a884" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <input
+                          type="text"
+                          value={contactIdentifier}
+                          onChange={(e) => setContactIdentifier(e.target.value)}
+                          placeholder="Email or phone number"
+                          style={styles.wpInlineInput}
+                        />
+                        {contactMessage && <div style={styles.wpError}>{contactMessage}</div>}
+                      </div>
+                      {contactIdentifier.trim() && (
+                        <button type="submit" disabled={contactLoading} style={styles.wpInlineAddBtn}>
+                          {contactLoading ? <Loader2 size={16} className="spin-icon" /> : <Check size={16} color="#fff" />}
+                        </button>
+                      )}
+                    </div>
+                  </form>
+
+                  {allUsers.length > 0 && <div style={styles.wpSectionLabel}>CONTACTS ON TALKBOX</div>}
                   {allUsers
                     .filter((u) => {
                       const term = chatSearch.toLowerCase();
-                      if (!term) return true;
-                      return (u.full_name || u.email || '').toLowerCase().includes(term);
+                      return !term || (u.full_name || u.email || '').toLowerCase().includes(term);
+                    })
+                    .map((u) => (
+                      <div key={u.id} style={styles.wpContactRow} onClick={() => startChatWith(u)}>
+                        <Avatar url={u.profile_picture_url} isGroup={false} size={48} iconSize={22} />
+                        <div style={styles.wpContactInfo}>
+                          <div style={styles.wpContactName}>{u.full_name || u.email}</div>
+                          <div style={styles.wpContactSub}>{u.is_online ? 'online' : u.email}</div>
+                        </div>
+                        {u.is_online && <span style={styles.wpOnlineDot} />}
+                      </div>
+                    ))}
+                </>
+              )}
+
+              {/* GROUP MODE — STEP 1: pick members */}
+              {newChatMode === 'group' && groupStep === 1 && (
+                <>
+                  {allUsers.length === 0 && (
+                    <div style={styles.wpEmpty}>No contacts yet. Add someone first.</div>
+                  )}
+                  {allUsers
+                    .filter((u) => {
+                      const term = chatSearch.toLowerCase();
+                      return !term || (u.full_name || u.email || '').toLowerCase().includes(term);
                     })
                     .map((u) => {
                       const selected = selectedUserIds.includes(u.id);
                       return (
-                        <div
-                          key={u.id}
-                          style={{ ...styles.userListItem, backgroundColor: selected ? '#e7f7f2' : 'transparent' }}
-                          onClick={() => toggleUserSelection(u.id)}
-                        >
-                          <Avatar url={u.profile_picture_url} isGroup={false} size={38} iconSize={16} />
-                          <div className="ms-3 flex-grow-1">
-                            <div className="fw-bold" style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{u.full_name || u.email}</div>
+                        <div key={u.id} style={{ ...styles.wpContactRow, backgroundColor: selected ? 'var(--bg-item-active)' : 'transparent' }} onClick={() => toggleUserSelection(u.id)}>
+                          <div style={{ position: 'relative' }}>
+                            <Avatar url={u.profile_picture_url} isGroup={false} size={48} iconSize={22} />
+                            {selected && (
+                              <div style={styles.wpSelectedBadge}>
+                                <Check size={12} color="#fff" />
+                              </div>
+                            )}
                           </div>
-                          <div style={{ ...styles.checkbox, ...(selected ? styles.checkboxChecked : {}) }}>
-                            {selected && <Check size={13} color="#fff" />}
+                          <div style={styles.wpContactInfo}>
+                            <div style={styles.wpContactName}>{u.full_name || u.email}</div>
+                            <div style={styles.wpContactSub}>{u.is_online ? 'online' : u.email}</div>
                           </div>
                         </div>
                       );
                     })}
-                </div>
+                </>
+              )}
 
-                <button
-                  className="btn text-white w-100 d-flex align-items-center justify-content-center gap-2"
-                  style={{ backgroundColor: '#00a884', borderRadius: '8px' }}
-                  disabled={!groupName.trim() || selectedUserIds.length === 0 || creatingGroup}
-                  onClick={createGroup}
-                >
-                  {creatingGroup ? <Loader2 size={16} className="spin-icon" /> : null}
-                  {creatingGroup ? 'Creating...' : 'Create group'}
-                </button>
+              {/* GROUP MODE — STEP 2: set name */}
+              {newChatMode === 'group' && groupStep === 2 && (
+                <div style={{ padding: '24px 16px' }}>
+                  <div style={styles.wpGroupIconWrap}>
+                    <div style={styles.wpGroupIconCircle}>
+                      <Users size={40} color="#8696a0" />
+                    </div>
+                  </div>
+                  <div style={styles.wpSectionLabel}>GROUP NAME</div>
+                  <div style={styles.wpGroupNameRow}>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={groupName}
+                      onChange={(e) => setGroupName(e.target.value)}
+                      placeholder="Group name"
+                      maxLength={50}
+                      style={styles.wpGroupNameInput}
+                    />
+                    <span style={styles.wpGroupNameCount}>{50 - groupName.length}</span>
+                  </div>
+                  <div style={styles.wpSectionLabel}>PARTICIPANTS — {selectedUserIds.length}</div>
+                  {selectedUserIds.map((id) => {
+                    const u = allUsers.find((x) => x.id === id);
+                    if (!u) return null;
+                    return (
+                      <div key={id} style={styles.wpContactRow}>
+                        <Avatar url={u.profile_picture_url} isGroup={false} size={48} iconSize={22} />
+                        <div style={styles.wpContactInfo}>
+                          <div style={styles.wpContactName}>{u.full_name || u.email}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+
+            {/* ── FAB: next / create ── */}
+            {newChatMode === 'group' && (
+              <>
+                {groupStep === 1 && selectedUserIds.length > 0 && (
+                  <button style={styles.wpFab} onClick={() => { setGroupStep(2); setChatSearch(''); }}>
+                    <ArrowLeft size={22} color="#fff" style={{ transform: 'rotate(180deg)' }} />
+                  </button>
+                )}
+                {groupStep === 2 && (
+                  <button
+                    style={{ ...styles.wpFab, opacity: groupName.trim() ? 1 : 0.4 }}
+                    disabled={!groupName.trim() || creatingGroup}
+                    onClick={createGroup}
+                  >
+                    {creatingGroup ? <Loader2 size={22} color="#fff" className="spin-icon" /> : <Check size={22} color="#fff" />}
+                  </button>
+                )}
               </>
             )}
+
           </div>
         </div>
       )}
@@ -1127,6 +1190,41 @@ const styles = {
   userListItem: { display: 'flex', alignItems: 'center', padding: '10px 8px', cursor: 'pointer', borderRadius: '6px' },
   checkbox: { width: '20px', height: '20px', borderRadius: '5px', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkboxChecked: { backgroundColor: '#00a884', border: '2px solid #00a884' },
+
+  // WhatsApp-style new chat panel
+  wpPanel: { position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'stretch' },
+  wpPanelInner: { width: '100%', maxWidth: '420px', backgroundColor: 'var(--bg-sidebar)', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 24px rgba(0,0,0,0.18)', position: 'relative' },
+  wpHeader: { backgroundColor: '#00a884', padding: '18px 16px 16px', display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 },
+  wpBackBtn: { background: 'none', border: 'none', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 },
+  wpHeaderTitle: { color: '#fff', fontWeight: 600, fontSize: '1.05rem' },
+  wpHeaderSub: { color: 'rgba(255,255,255,0.75)', fontSize: '0.78rem', marginTop: '2px' },
+  wpSearchWrap: { display: 'flex', alignItems: 'center', gap: '10px', margin: '8px 12px', backgroundColor: 'var(--bg-search)', borderRadius: '8px', padding: '8px 12px', flexShrink: 0 },
+  wpSearchInput: { flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '0.95rem', color: 'var(--text-primary)' },
+  wpClearBtn: { background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' },
+  wpChipsRow: { display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '8px 12px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 },
+  wpChip: { display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: '#00a884', borderRadius: '999px', padding: '3px 8px 3px 4px' },
+  wpChipName: { color: '#fff', fontSize: '0.8rem', fontWeight: 500 },
+  wpChipRemove: { background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' },
+  wpBody: { flex: 1, overflowY: 'auto' },
+  wpSectionLabel: { fontSize: '0.72rem', fontWeight: 600, color: '#00a884', letterSpacing: '0.06em', padding: '14px 16px 6px' },
+  wpNewContactRow: { display: 'flex', alignItems: 'center', gap: '14px', padding: '10px 16px', borderBottom: '1px solid var(--border-light)' },
+  wpNewContactIcon: { width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'rgba(0,168,132,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  wpInlineInput: { width: '100%', border: 'none', borderBottom: '1px solid #00a884', background: 'transparent', outline: 'none', fontSize: '0.95rem', color: 'var(--text-primary)', padding: '4px 0' },
+  wpInlineAddBtn: { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#00a884', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 },
+  wpError: { fontSize: '0.78rem', color: '#e53935', marginTop: '4px' },
+  wpContactRow: { display: 'flex', alignItems: 'center', gap: '14px', padding: '10px 16px', cursor: 'pointer', transition: 'background 0.15s' },
+  wpContactInfo: { flex: 1, minWidth: 0 },
+  wpContactName: { fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  wpContactSub: { fontSize: '0.82rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  wpOnlineDot: { width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#00a884', flexShrink: 0 },
+  wpSelectedBadge: { position: 'absolute', bottom: 0, right: 0, width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#00a884', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg-sidebar)' },
+  wpEmpty: { textAlign: 'center', color: 'var(--text-secondary)', padding: '32px 16px', fontSize: '0.9rem' },
+  wpGroupIconWrap: { display: 'flex', justifyContent: 'center', marginBottom: '24px' },
+  wpGroupIconCircle: { width: '100px', height: '100px', borderRadius: '50%', backgroundColor: 'var(--bg-search)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  wpGroupNameRow: { display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '2px solid #00a884', paddingBottom: '6px', marginBottom: '20px' },
+  wpGroupNameInput: { flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '1rem', color: 'var(--text-primary)' },
+  wpGroupNameCount: { fontSize: '0.8rem', color: 'var(--text-secondary)', flexShrink: 0 },
+  wpFab: { position: 'absolute', bottom: '24px', right: '24px', width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#00a884', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,168,132,0.4)', zIndex: 10 },
 };
 
 export default Dashboard;
