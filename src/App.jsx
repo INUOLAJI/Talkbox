@@ -35,13 +35,16 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) { setBootstrapping(false); return; }
+
+    const timeout = setTimeout(() => setBootstrapping(false), 5000); // fallback
+
     fetch(`${API_BASE}/api/chat/profile/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) setUser(data); })
       .catch(() => {})
-      .finally(() => setBootstrapping(false));
+      .finally(() => { clearTimeout(timeout); setBootstrapping(false); });
   }, []);
 
   const handleLogout = () => {
@@ -80,7 +83,15 @@ function App() {
     };
   }, [user]);
 
-  return bootstrapping ? null : (
+  if (bootstrapping) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f0f2f5', gap: '12px' }}>
+      <div style={{ fontSize: '2.5rem' }}>💬</div>
+      <div style={{ color: '#00a884', fontWeight: 600, fontSize: '1.1rem', fontFamily: 'Segoe UI, sans-serif' }}>Talkbox</div>
+      <div style={{ width: '32px', height: '32px', border: '3px solid #e1e9eb', borderTop: '3px solid #00a884', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
+
+  return (
     <Router>
       <Routes>
         {/* Public Login/Signup Route */}
