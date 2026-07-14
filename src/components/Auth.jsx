@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 const useIsMobile = (breakpoint = 768) => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < breakpoint : false
@@ -36,8 +38,8 @@ const Auth = ({ onAuthSuccess }) => {
     setLoading(true);
 
     const endpoint = isRegistering
-      ? '/api/signup/'
-      : '/api/login/';
+      ? `${API_BASE}/api/signup/`
+      : `${API_BASE}/api/login/`;
 
     try {
       const response = await fetch(endpoint, {
