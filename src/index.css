@@ -6,3 +6,249 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ── Theme variables ── */
+body, [data-theme="light"] {
+  --bg-app:           #f0f2f5;
+  --bg-sidebar:       #ffffff;
+  --bg-sidebar-hdr:   #f0f2f5;
+  --bg-search:        #f0f2f5;
+  --bg-chat:          #efeae2;
+  --bg-chat-hdr:      #f0f2f5;
+  --bg-input-bar:     #f0f2f5;
+  --bg-input:         #ffffff;
+  --bg-msg-me:        #d9fdd3;
+  --bg-msg-other:     #ffffff;
+  --bg-modal:         #ffffff;
+  --bg-modal-hdr:     #f8f9fa;
+  --bg-surface:       #f8f9fa;
+  --bg-item-active:   #f0f2f5;
+  --bg-item-hover:    #f5f6f6;
+  --border:           #e1e9eb;
+  --border-light:     #f0f2f5;
+  --text-primary:     #111b21;
+  --text-secondary:   #667781;
+  --text-label:       #8696a0;
+  --shadow-modal:     0 8px 32px rgba(0,0,0,0.15);
+}
+
+[data-theme="dark"] {
+  --bg-app:           #0b141a;
+  --bg-sidebar:       #111b21;
+  --bg-sidebar-hdr:   #202c33;
+  --bg-search:        #2a3942;
+  --bg-chat:          #0b141a;
+  --bg-chat-hdr:      #202c33;
+  --bg-input-bar:     #202c33;
+  --bg-input:         #2a3942;
+  --bg-msg-me:        #005c4b;
+  --bg-msg-other:     #202c33;
+  --bg-modal:         #233138;
+  --bg-modal-hdr:     #182229;
+  --bg-surface:       #2a3942;
+  --bg-item-active:   #2a3942;
+  --bg-item-hover:    #1f2c34;
+  --border:           #2a3942;
+  --border-light:     #2a3942;
+  --text-primary:     #e9edef;
+  --text-secondary:   #8696a0;
+  --text-label:       #8696a0;
+  --shadow-modal:     0 8px 40px rgba(0,0,0,0.5);
+}
+
+/* ── App shell ── */
+[data-theme="dark"] .container-fluid {
+  background-color: var(--bg-app) !important;
+}
+
+/* ── Sidebar ── */
+[data-theme="dark"] .sidebar {
+  background-color: var(--bg-sidebar) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .sidebar-header {
+  background-color: var(--bg-sidebar-hdr) !important;
+  border-color: var(--border) !important;
+}
+
+/* search box wrapper */
+[data-theme="dark"] .sidebar > .p-2 {
+  background-color: var(--bg-sidebar) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── Chat list items ── */
+[data-theme="dark"] [style*="chatListItem"] {
+  border-color: var(--border) !important;
+}
+
+/* ── Chat window ── */
+[data-theme="dark"] .chat-window {
+  background-color: var(--bg-chat) !important;
+}
+
+[data-theme="dark"] .chat-header {
+  background-color: var(--bg-chat-hdr) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .message-area {
+  background-color: var(--bg-chat) !important;
+  background-image: none !important;
+}
+
+[data-theme="dark"] .input-container {
+  background-color: var(--bg-input-bar) !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+/* ── Message bubbles ── */
+[data-theme="dark"] .message-bubble-me {
+  background-color: var(--bg-msg-me) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .message-bubble-other {
+  background-color: var(--bg-msg-other) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── Splash screen ── */
+[data-theme="dark"] .splash-screen {
+  background-color: var(--bg-chat) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── Modals ── */
+[data-theme="dark"] .modal-card {
+  background-color: var(--bg-modal) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-modal) !important;
+}
+
+[data-theme="dark"] .settings-header {
+  background-color: var(--bg-modal-hdr) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── Form controls ── */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .form-control::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+  background-color: var(--bg-input) !important;
+  border-color: #00a884 !important;
+  box-shadow: 0 0 0 0.2rem rgba(0,168,132,0.2) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── Typography ── */
+[data-theme="dark"] .text-dark {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-muted {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] label,
+[data-theme="dark"] small {
+  color: inherit;
+}
+
+/* ── Buttons ── */
+[data-theme="dark"] .btn-light {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+  color: var(--text-secondary) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .btn-outline-primary {
+  color: #53bdeb !important;
+  border-color: #53bdeb !important;
+}
+
+[data-theme="dark"] .btn-outline-primary:hover {
+  background-color: rgba(83,189,235,0.1) !important;
+}
+
+[data-theme="dark"] .btn-outline-danger {
+  color: #f15c6d !important;
+  border-color: #f15c6d !important;
+}
+
+[data-theme="dark"] .btn-outline-danger:hover {
+  background-color: rgba(241,92,109,0.1) !important;
+}
+
+/* ── Dividers ── */
+[data-theme="dark"] hr {
+  border-color: var(--border) !important;
+  opacity: 1 !important;
+}
+
+/* ── Scrollbar ── */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-sidebar);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #3d5a65;
+}
+
+/* ── New chat / contacts modal extras ── */
+[data-theme="dark"] .modal-card h6,
+[data-theme="dark"] .modal-card p,
+[data-theme="dark"] .modal-card span,
+[data-theme="dark"] .modal-card label,
+[data-theme="dark"] .modal-card small {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-card .text-muted,
+[data-theme="dark"] .modal-card small.text-muted {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .modal-card .text-success {
+  color: #00a884 !important;
+}
+
+/* user list item hover in dark */
+[data-theme="dark"] .modal-card [style*="userListItem"]:hover {
+  background-color: var(--bg-item-hover) !important;
+}

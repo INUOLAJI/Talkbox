@@ -86,6 +86,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [myAvatarUrl, setMyAvatarUrl] = useState(user?.profile_picture_url || null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [groupAvatarUploading, setGroupAvatarUploading] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState('');
   const pendingMessagesRef = useRef([]);
   const wsRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -93,6 +94,11 @@ const Dashboard = ({ user, onLogout }) => {
   const messagesEndRef = useRef(null);
   const groupAvatarInputRef = useRef(null);
   const isMobile = useIsMobile();
+
+  // Apply saved theme on mount
+  useEffect(() => {
+    document.body.dataset.theme = user?.theme_preference || 'light';
+  }, []);
 
   const fetchRooms = useCallback(async () => {
     try {
@@ -470,9 +476,7 @@ const Dashboard = ({ user, onLogout }) => {
       if (!res.ok) throw new Error(data.error || 'Could not save settings');
 
       setProfileMessage('Profile updated');
-      if (typeof window !== 'undefined') {
-        document.body.dataset.theme = data.theme_preference || 'light';
-      }
+      document.body.dataset.theme = data.theme_preference || 'light';
     } catch (err) {
       setProfileMessage(err.message);
     } finally {
@@ -523,10 +527,10 @@ const Dashboard = ({ user, onLogout }) => {
 
         {showSidebar && (
           <div
-            className={isMobile ? 'col-12' : 'col-4'}
+            className={`sidebar ${isMobile ? 'col-12' : 'col-4'}`}
             style={{ ...styles.sidebar, ...(isMobile ? styles.sidebarMobile : {}) }}
           >
-            <div className="d-flex justify-content-between align-content-center p-3" style={styles.sidebarHeader}>
+            <div className="sidebar-header d-flex justify-content-between align-content-center p-3" style={styles.sidebarHeader}>
               <div className="d-flex align-items-center gap-2">
                 <div style={{ position: 'relative' }}>
                   <Avatar url={myAvatarUrl} isGroup={false} size={40} iconSize={18} />
@@ -540,7 +544,7 @@ const Dashboard = ({ user, onLogout }) => {
                   </button>
                   <input type="file" ref={avatarInputRef} accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
                 </div>
-                <div className="fw-bold text-dark">{user?.full_name || 'My Profile'}</div>
+                <div className="fw-bold" style={{ color: 'var(--text-primary)' }}>{user?.full_name || 'My Profile'}</div>
               </div>
               <div className="d-flex gap-2 align-items-center">
                 <button
@@ -568,7 +572,14 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
 
             <div className="p-2" style={styles.searchBoxContainer}>
-              <input type="text" placeholder="Search or start new chat" className="form-control form-control-sm" style={styles.searchInput} />
+              <input
+                type="text"
+                placeholder="Search chats"
+                value={sidebarSearch}
+                onChange={(e) => setSidebarSearch(e.target.value)}
+                className="form-control form-control-sm"
+                style={styles.searchInput}
+              />
             </div>
 
             <div className="flex-grow-1 overflow-auto">
@@ -582,14 +593,20 @@ const Dashboard = ({ user, onLogout }) => {
                 </div>
               )}
 
-              {rooms.map((room) => {
+              {rooms
+              .filter((room) => {
+                const term = sidebarSearch.toLowerCase();
+                if (!term) return true;
+                return (room.display_name || '').toLowerCase().includes(term);
+              })
+              .map((room) => {
                 const online = isRoomOnline(room);
                 const hasUnread = activeChat?.id !== room.id && room.unread_count > 0;
                 return (
                   <div
                     key={room.id}
                     onClick={() => setActiveChat(room)}
-                    style={{ ...styles.chatListItem, backgroundColor: activeChat?.id === room.id ? '#f0f2f5' : 'transparent' }}
+                    style={{ ...styles.chatListItem, backgroundColor: activeChat?.id === room.id ? 'var(--bg-item-active)' : 'transparent' }}
                   >
                     <div style={{ position: 'relative' }}>
                       <Avatar url={room.profile_picture_url} isGroup={room.is_group} />
@@ -597,13 +614,13 @@ const Dashboard = ({ user, onLogout }) => {
                     </div>
                     <div className="flex-grow-1 ms-3">
                       <div className="d-flex justify-content-between">
-                        <span className="fw-bold text-dark">{room.display_name}</span>
+                        <span className="fw-bold" style={{ color: 'var(--text-primary)' }}>{room.display_name}</span>
                         <span style={styles.chatTime}>
                           {room.last_message_time ? new Date(room.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </div>
                       <div className="d-flex justify-content-between align-items-center">
-                        <div style={{ ...styles.lastMessageText, fontWeight: hasUnread ? 600 : 400, color: hasUnread ? '#111b21' : '#667781' }}>
+                        <div style={{ ...styles.lastMessageText, fontWeight: hasUnread ? 600 : 400, color: hasUnread ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                           {online ? <span style={{ color: '#00a884' }}>online</span> : room.last_message}
                         </div>
                         {hasUnread && (
@@ -622,12 +639,12 @@ const Dashboard = ({ user, onLogout }) => {
 
         {showChatWindow && (
           <div
-            className={isMobile ? 'col-12 d-flex flex-column' : 'col-8 d-flex flex-column'}
+            className={`chat-window ${isMobile ? 'col-12 d-flex flex-column' : 'col-8 d-flex flex-column'}`}
             style={{ ...styles.chatWindow, height: isMobile ? '100vh' : '100%' }}
           >
             {activeChat ? (
               <>
-                <div className="d-flex align-items-center p-3" style={styles.chatHeader}>
+                <div className="chat-header d-flex align-items-center p-3" style={styles.chatHeader}>
                   {isMobile && (
                     <button className="btn btn-sm btn-light me-2 d-flex align-items-center justify-content-center" onClick={() => setActiveChat(null)} style={styles.backButton}>
                       <ArrowLeft size={18} />
@@ -651,7 +668,7 @@ const Dashboard = ({ user, onLogout }) => {
                     )}
                   </div>
                   <div className="ms-3">
-                    <h6 className="m-0 fw-bold">{activeChat.display_name}</h6>
+                    <h6 className="m-0 fw-bold" style={{ color: 'var(--text-primary)' }}>{activeChat.display_name}</h6>
                     <small className="text-muted">
                       {activeChat.is_group ? 'Group Chat Room' : isRoomOnline(activeChat) ? 'online' : 'offline'}
                     </small>
@@ -664,10 +681,10 @@ const Dashboard = ({ user, onLogout }) => {
                   </div>
                 )}
 
-                <div className="flex-grow-1 p-3 p-md-4 overflow-auto" style={styles.messageArea}>
+                <div className="message-area flex-grow-1 p-3 p-md-4 overflow-auto" style={styles.messageArea}>
                   {messages.map((msg) => (
                     <div key={msg.id} className={`d-flex mb-2 ${msg.isMe ? 'justify-content-end' : 'justify-content-start'}`}>
-                      <div style={{ ...styles.messageBubble, backgroundColor: msg.isMe ? '#d9fdd3' : '#ffffff' }}>
+                      <div className={msg.isMe ? 'message-bubble-me' : 'message-bubble-other'} style={{ ...styles.messageBubble, backgroundColor: msg.isMe ? '#d9fdd3' : '#ffffff' }}>
                         {!msg.isMe && <small className="d-block fw-bold text-success mb-1">{msg.sender}</small>}
 
                         {msg.fileType === 'image' && msg.fileUrl && (
@@ -679,7 +696,7 @@ const Dashboard = ({ user, onLogout }) => {
                           </a>
                         )}
 
-                        {msg.text && <p className="m-0 text-dark" style={{ wordBreak: 'break-word' }}>{msg.text}</p>}
+                        {msg.text && <p className="m-0" style={{ wordBreak: 'break-word', color: 'var(--text-primary)' }}>{msg.text}</p>}
                         <span className="d-block text-end text-muted mt-1" style={{ fontSize: '0.75em' }}>{msg.time}</span>
                       </div>
                     </div>
@@ -687,7 +704,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="p-2 p-md-3" style={styles.inputContainer}>
+                <div className="input-container p-2 p-md-3" style={styles.inputContainer}>
                   <form onSubmit={handleSendMessage} className="d-flex gap-2 align-items-center">
                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} />
                     <button
@@ -712,9 +729,9 @@ const Dashboard = ({ user, onLogout }) => {
                 </div>
               </>
             ) : (
-              <div className="d-flex flex-column justify-content-center align-items-center h-100" style={styles.splashScreen}>
+              <div className="splash-screen d-flex flex-column justify-content-center align-items-center h-100" style={styles.splashScreen}>
                 <MessageCircle size={64} color="#00a884" strokeWidth={1.5} />
-                <h4 className="mt-3 text-dark">Talkbox</h4>
+                <h4 className="mt-3" style={{ color: 'var(--text-primary)' }}>Talkbox</h4>
                 <p className="text-muted text-center max-width-300">
                   Select a chat from the list, or start a new one.
                 </p>
@@ -726,64 +743,153 @@ const Dashboard = ({ user, onLogout }) => {
 
       {showSettings && (
         <div style={styles.modalOverlay} onClick={() => setShowSettings(false)}>
-          <div style={{ ...styles.modalCard, maxWidth: '460px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="modal-card" style={styles.settingsCard} onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="settings-header" style={styles.settingsHeader}>
               <div>
-                <h6 className="m-0 fw-bold">Settings</h6>
-                <small className="text-muted">Update your profile and preferences</small>
+                <h6 className="m-0 fw-bold" style={{ color: 'var(--text-primary)' }}>Settings</h6>
+                <small style={{ color: '#8696a0' }}>Update your profile and preferences</small>
               </div>
-              <button className="btn btn-sm btn-light d-flex align-items-center justify-content-center" onClick={() => setShowSettings(false)} style={{ width: '30px', height: '30px' }}>
+              <button onClick={() => setShowSettings(false)} style={styles.closeBtn}>
                 <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={saveProfileSettings}>
-              <div className="mb-3">
-                <label className="form-label small text-muted">Profile picture</label>
-                <div className="d-flex align-items-center gap-3">
-                  <Avatar url={myAvatarUrl} isGroup={false} size={56} iconSize={24} />
-                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => avatarInputRef.current?.click()}>
-                    {avatarUploading ? 'Uploading...' : 'Upload photo'}
-                  </button>
+            <div style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
+              <form onSubmit={saveProfileSettings}>
+
+                {/* Avatar */}
+                <div style={styles.avatarSection}>
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <Avatar url={myAvatarUrl} isGroup={false} size={72} iconSize={30} />
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      style={styles.avatarOverlayBtn}
+                      title="Change photo"
+                    >
+                      {avatarUploading ? <Loader2 size={14} className="spin-icon" /> : <Camera size={14} />}
+                    </button>
+                  </div>
+                  <div>
+                    <div className="fw-semibold" style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                      {profileForm.full_name || 'Your Name'}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => avatarInputRef.current?.click()}
+                      style={{ color: '#00a884', padding: '2px 0', fontSize: '0.82rem', background: 'none', border: 'none' }}
+                    >
+                      {avatarUploading ? 'Uploading...' : 'Change profile photo'}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mb-3">
-                <label className="form-label small text-muted">Display name</label>
-                <input type="text" name="full_name" value={profileForm.full_name} onChange={handleProfileChange} className="form-control form-control-sm" />
-              </div>
+                <hr style={{ borderColor: '#f0f2f5', margin: '16px 0' }} />
 
-              <div className="mb-3">
-                <label className="form-label small text-muted">Phone number</label>
-                <input type="text" name="phone_number" value={profileForm.phone_number} onChange={handleProfileChange} className="form-control form-control-sm" />
-              </div>
+                {/* Fields */}
+                <div className="mb-3">
+                  <label style={styles.fieldLabel}>Display name</label>
+                  <input
+                    type="text"
+                    name="full_name"
+                    value={profileForm.full_name}
+                    onChange={handleProfileChange}
+                    className="form-control form-control-sm"
+                    style={styles.fieldInput}
+                    placeholder="Your full name"
+                  />
+                </div>
 
-              <div className="mb-3">
-                <label className="form-label small text-muted">Bio</label>
-                <textarea name="bio" rows="3" value={profileForm.bio} onChange={handleProfileChange} className="form-control form-control-sm" placeholder="Tell people a little about yourself" />
-              </div>
+                <div className="mb-3">
+                  <label style={styles.fieldLabel}>Phone number</label>
+                  <input
+                    type="text"
+                    name="phone_number"
+                    value={profileForm.phone_number}
+                    onChange={handleProfileChange}
+                    className="form-control form-control-sm"
+                    style={styles.fieldInput}
+                    placeholder="e.g. +1 234 567 8900"
+                  />
+                </div>
 
-              <div className="mb-3">
-                <label className="form-label small text-muted">Theme</label>
-                <select name="theme_preference" value={profileForm.theme_preference} onChange={handleProfileChange} className="form-select form-select-sm">
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </div>
+                <div className="mb-3">
+                  <label style={styles.fieldLabel}>Bio</label>
+                  <textarea
+                    name="bio"
+                    rows="3"
+                    value={profileForm.bio}
+                    onChange={handleProfileChange}
+                    className="form-control form-control-sm"
+                    style={{ ...styles.fieldInput, resize: 'none' }}
+                    placeholder="Tell people a little about yourself"
+                  />
+                </div>
 
-              {profileMessage && <div className={`small mb-2 ${profileMessage === 'Profile updated' ? 'text-success' : 'text-danger'}`}>{profileMessage}</div>}
+                <div className="mb-4">
+                  <label style={styles.fieldLabel}>Theme</label>
+                  <div className="d-flex gap-2">
+                    {['light', 'dark'].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setProfileForm((prev) => ({ ...prev, theme_preference: t }))}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          borderRadius: '8px',
+                          border: profileForm.theme_preference === t ? '2px solid #00a884' : '2px solid #e9ecef',
+                          backgroundColor: profileForm.theme_preference === t ? '#e7f7f2' : '#f8f9fa',
+                          color: profileForm.theme_preference === t ? '#00a884' : '#667781',
+                          fontWeight: profileForm.theme_preference === t ? 600 : 400,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          textTransform: 'capitalize',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {t === 'light' ? '☀️ Light' : '🌙 Dark'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <button type="submit" className="btn text-white w-100" disabled={savingProfile} style={{ backgroundColor: '#00a884', borderRadius: '8px' }}>
-                {savingProfile ? <Loader2 size={16} className="spin-icon" /> : 'Save settings'}
-              </button>
-            </form>
+                {profileMessage && (
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      marginBottom: '14px',
+                      fontSize: '0.85rem',
+                      backgroundColor: profileMessage === 'Profile updated' ? '#e7f7f2' : '#fde8e8',
+                      color: profileMessage === 'Profile updated' ? '#00a884' : '#c0392b',
+                    }}
+                  >
+                    {profileMessage}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="btn w-100 d-flex align-items-center justify-content-center gap-2"
+                  disabled={savingProfile}
+                  style={styles.saveBtn}
+                >
+                  {savingProfile ? <Loader2 size={16} className="spin-icon" /> : null}
+                  {savingProfile ? 'Saving...' : 'Save changes'}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
       {showNewChat && (
         <div style={styles.modalOverlay} onClick={() => setShowNewChat(false)}>
-          <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card" style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div>
                 <h6 className="m-0 fw-bold">{newChatMode === 'group' ? 'New group' : 'New chat'}</h6>
@@ -794,16 +900,14 @@ const Dashboard = ({ user, onLogout }) => {
               </button>
             </div>
 
-            <div className="d-flex mb-3" style={{ borderBottom: '1px solid #e9ecef', paddingBottom: '10px' }}>
+            <div className="d-flex mb-3" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
               <button
                 className="btn btn-sm flex-grow-1"
                 onClick={() => setNewChatMode('chat')}
                 style={{
-                  backgroundColor: newChatMode === 'chat' ? '#e7f7f2' : 'transparent',
-                  color: newChatMode === 'chat' ? '#00a884' : '#667781',
-                  border: 'none',
-                  borderRadius: '999px',
-                  marginRight: '6px',
+                  backgroundColor: newChatMode === 'chat' ? 'rgba(0,168,132,0.15)' : 'transparent',
+                  color: newChatMode === 'chat' ? '#00a884' : 'var(--text-secondary)',
+                  border: 'none', borderRadius: '999px', marginRight: '6px',
                 }}
               >
                 Chats
@@ -812,10 +916,9 @@ const Dashboard = ({ user, onLogout }) => {
                 className="btn btn-sm flex-grow-1"
                 onClick={() => setNewChatMode('group')}
                 style={{
-                  backgroundColor: newChatMode === 'group' ? '#e7f7f2' : 'transparent',
-                  color: newChatMode === 'group' ? '#00a884' : '#667781',
-                  border: 'none',
-                  borderRadius: '999px',
+                  backgroundColor: newChatMode === 'group' ? 'rgba(0,168,132,0.15)' : 'transparent',
+                  color: newChatMode === 'group' ? '#00a884' : 'var(--text-secondary)',
+                  border: 'none', borderRadius: '999px',
                 }}
               >
                 Groups
@@ -823,14 +926,14 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
 
             <div className="position-relative mb-3">
-              <Search size={15} color="#8796a1" style={{ position: 'absolute', left: '10px', top: '10px' }} />
+              <Search size={15} color="var(--text-secondary)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
               <input
                 type="text"
                 placeholder={newChatMode === 'group' ? 'Search contacts to add' : 'Search contacts'}
                 value={chatSearch}
                 onChange={(e) => setChatSearch(e.target.value)}
                 className="form-control form-control-sm"
-                style={{ paddingLeft: '34px', borderRadius: '999px', backgroundColor: '#f0f2f5', border: 'none' }}
+                style={{ paddingLeft: '34px', borderRadius: '999px', backgroundColor: 'var(--bg-search)', border: 'none', color: 'var(--text-primary)' }}
               />
             </div>
 
@@ -863,10 +966,10 @@ const Dashboard = ({ user, onLogout }) => {
                     return (u.full_name || u.email || '').toLowerCase().includes(term);
                   })
                   .map((u) => (
-                    <div key={u.id} style={styles.userListItem} onClick={() => startChatWith(u)}>
+                    <div key={u.id} style={{ ...styles.userListItem, color: 'var(--text-primary)' }} onClick={() => startChatWith(u)}>
                       <Avatar url={u.profile_picture_url} isGroup={false} />
                       <div className="ms-3 flex-grow-1">
-                        <div className="fw-bold text-dark">{u.full_name || u.email}</div>
+                        <div className="fw-bold" style={{ color: 'var(--text-primary)' }}>{u.full_name || u.email}</div>
                         <small className={u.is_online ? 'text-success' : 'text-muted'}>
                           {u.is_online ? 'online' : 'offline'}
                         </small>
@@ -908,7 +1011,7 @@ const Dashboard = ({ user, onLogout }) => {
                         >
                           <Avatar url={u.profile_picture_url} isGroup={false} size={38} iconSize={16} />
                           <div className="ms-3 flex-grow-1">
-                            <div className="fw-bold text-dark" style={{ fontSize: '0.9rem' }}>{u.full_name || u.email}</div>
+                            <div className="fw-bold" style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{u.full_name || u.email}</div>
                           </div>
                           <div style={{ ...styles.checkbox, ...(selected ? styles.checkboxChecked : {}) }}>
                             {selected && <Check size={13} color="#fff" />}
@@ -937,39 +1040,47 @@ const Dashboard = ({ user, onLogout }) => {
 };
 
 const styles = {
-  dashboardContainer: { height: '100vh', backgroundColor: '#f0f2f5', fontFamily: 'Segoe UI, Helvetica Neue, Arial, sans-serif', overflow: 'hidden', position: 'relative' },
-  sidebar: { borderRight: '1px solid #e1e9eb', backgroundColor: '#ffffff', height: '100%', display: 'flex', flexDirection: 'column' },
+  dashboardContainer: { height: '100vh', backgroundColor: 'var(--bg-app)', fontFamily: 'Segoe UI, Helvetica Neue, Arial, sans-serif', overflow: 'hidden', position: 'relative' },
+  sidebar: { borderRight: '1px solid var(--border)', backgroundColor: 'var(--bg-sidebar)', height: '100%', display: 'flex', flexDirection: 'column' },
   sidebarMobile: { height: '100vh' },
-  sidebarHeader: { backgroundColor: '#f0f2f5', borderBottom: '1px solid #e1e9eb' },
+  sidebarHeader: { backgroundColor: 'var(--bg-sidebar-hdr)', borderBottom: '1px solid var(--border)' },
   avatarEditBtn: {
     position: 'absolute', bottom: -2, right: -2, width: '18px', height: '18px', borderRadius: '50%',
-    backgroundColor: '#00a884', border: '2px solid #f0f2f5', color: '#fff', display: 'flex',
+    backgroundColor: '#00a884', border: '2px solid var(--bg-sidebar-hdr)', color: '#fff', display: 'flex',
     alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer',
   },
-  searchBoxContainer: { backgroundColor: '#fff', borderBottom: '1px solid #f0f2f5' },
-  searchInput: { backgroundColor: '#f0f2f5', border: 'none', borderRadius: '8px' },
-  chatListItem: { display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f2f5', transition: 'background-color 0.2s' },
-  onlineDot: { position: 'absolute', bottom: 0, right: 0, width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#00a884', border: '2px solid #fff' },
+  searchBoxContainer: { backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-light)' },
+  searchInput: { backgroundColor: 'var(--bg-search)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)' },
+  chatListItem: { display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', transition: 'background-color 0.2s' },
+  onlineDot: { position: 'absolute', bottom: 0, right: 0, width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#00a884', border: '2px solid var(--bg-sidebar)' },
   unreadBadge: {
     backgroundColor: '#00a884', color: '#fff', fontSize: '0.72rem', fontWeight: 700, borderRadius: '999px',
     minWidth: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px', flexShrink: 0,
   },
-  chatTime: { fontSize: '0.8rem', color: '#667781' },
+  chatTime: { fontSize: '0.8rem', color: 'var(--text-secondary)' },
   lastMessageText: { fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' },
-  chatWindow: { backgroundColor: '#efeae2' },
-  chatHeader: { backgroundColor: '#f0f2f5', borderBottom: '1px solid #e1e9eb' },
+  chatWindow: { backgroundColor: 'var(--bg-chat)' },
+  chatHeader: { backgroundColor: 'var(--bg-chat-hdr)', borderBottom: '1px solid var(--border)' },
   connectionBanner: { padding: '10px 14px', backgroundColor: '#fff3cd', color: '#7a4a00', borderBottom: '1px solid #ffe69c', fontSize: '0.9rem' },
   connectionBannerError: { backgroundColor: '#f8d7da', color: '#842029', borderBottom: '1px solid #f1aeb5' },
   backButton: { border: 'none', backgroundColor: 'transparent', padding: '0 8px' },
   messageArea: { backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")' },
   messageBubble: { padding: '8px 12px', borderRadius: '8px', maxWidth: '75%', boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)' },
-  inputContainer: { backgroundColor: '#f0f2f5' },
-  chatInputField: { border: 'none', borderRadius: '8px', padding: '10px 15px' },
-  splashScreen: { backgroundColor: '#f8f9fa', borderLeft: '1px solid #e1e9eb' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modalCard: { backgroundColor: '#fff', borderRadius: '10px', padding: '20px', width: '90%', maxWidth: '380px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' },
+  inputContainer: { backgroundColor: 'var(--bg-input-bar)' },
+  chatInputField: { border: 'none', borderRadius: '8px', padding: '10px 15px', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' },
+  splashScreen: { backgroundColor: 'var(--bg-chat)', borderLeft: '1px solid var(--border)' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modalCard: { backgroundColor: 'var(--bg-modal)', borderRadius: '10px', padding: '20px', width: '90%', maxWidth: '380px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', color: 'var(--text-primary)' },
+  settingsCard: { backgroundColor: 'var(--bg-modal)', borderRadius: '12px', width: '90%', maxWidth: '440px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-modal)', overflow: 'hidden' },
+  settingsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-modal-hdr)' },
+  closeBtn: { width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)' },
+  avatarSection: { display: 'flex', alignItems: 'center', gap: '16px', padding: '4px 0 8px' },
+  avatarOverlayBtn: { position: 'absolute', bottom: 0, right: 0, width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#00a884', border: '2px solid var(--bg-modal)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' },
+  fieldLabel: { fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px', display: 'block' },
+  fieldInput: { borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)', fontSize: '0.9rem', color: 'var(--text-primary)' },
+  saveBtn: { backgroundColor: '#00a884', color: '#fff', borderRadius: '10px', padding: '10px', fontWeight: 600, fontSize: '0.95rem', border: 'none', transition: 'opacity 0.2s' },
   userListItem: { display: 'flex', alignItems: 'center', padding: '10px 8px', cursor: 'pointer', borderRadius: '6px' },
-  checkbox: { width: '20px', height: '20px', borderRadius: '5px', border: '2px solid #ced4da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  checkbox: { width: '20px', height: '20px', borderRadius: '5px', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkboxChecked: { backgroundColor: '#00a884', border: '2px solid #00a884' },
 };
 
