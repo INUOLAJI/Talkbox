@@ -24,9 +24,25 @@ const AuthWrapper = ({ onAuthSuccess }) => {
   return <Auth onAuthSuccess={handleSuccess} />;
 };
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 function App() {
   const [user, setUser] = useState(null);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const timeoutRef = useRef(null);
+
+  // Rehydrate user from stored token on hard refresh
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) { setBootstrapping(false); return; }
+    fetch(`${API_BASE}/api/chat/profile/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setUser(data); })
+      .catch(() => {})
+      .finally(() => setBootstrapping(false));
+  }, []);
 
   const handleLogout = () => {
     setUser(null);
@@ -64,7 +80,7 @@ function App() {
     };
   }, [user]);
 
-  return (
+  return bootstrapping ? null : (
     <Router>
       <Routes>
         {/* Public Login/Signup Route */}
