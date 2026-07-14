@@ -16,13 +16,8 @@ const AuthWrapper = ({ onAuthSuccess }) => {
   const navigate = useNavigate();
   
   const handleSuccess = (authPayload) => {
-    // 1. Silently save the JWT access token in background storage
-    localStorage.setItem('accessToken', authPayload.access);
-    
-    // 2. Save only the user's profile info to state
+    localStorage.setItem('accessToken', authPayload.access || authPayload.token || '');
     onAuthSuccess(authPayload.user);
-    
-    // 3. Move to the dashboard
     navigate('/dashboard');
   };
 

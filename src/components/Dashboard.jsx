@@ -3,7 +3,16 @@ import { Paperclip, Loader2, Users, User, MessageCircle, ArrowLeft, X, FileText,
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const WS_BASE = import.meta.env.VITE_WS_BASE_URL || '';
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const authHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
+});
+
+const authJsonHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
+});
 
 const getSocketUrl = (roomName) => `${WS_BASE}/ws/chat/${roomName}/`;
 
@@ -102,7 +111,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const fetchRooms = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/chat/rooms/`, { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/chat/rooms/`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Failed to load rooms');
       const data = await res.json();
       setRooms(data);
@@ -168,7 +177,7 @@ const Dashboard = ({ user, onLogout }) => {
         // Keep last_read_at fresh so the next poll doesn't show a stale badge on the open chat
         fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/read/`, {
           method: 'POST',
-          credentials: 'include',
+          headers: authHeaders(),
         }).catch((err) => console.error('Failed to mark room read:', err));
       } else if (data.type === 'presence') {
         setOnlineUsers((prev) => ({
@@ -191,7 +200,7 @@ const Dashboard = ({ user, onLogout }) => {
     // Mark this room as read as soon as it's opened, and clear its badge locally
     fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/read/`, {
       method: 'POST',
-      credentials: 'include',
+      headers: authHeaders(),
     }).catch((err) => console.error('Failed to mark room read:', err));
 
     setRooms((prev) => prev.map((r) => (r.id === activeChat.id ? { ...r, unread_count: 0 } : r)));
@@ -248,7 +257,7 @@ const Dashboard = ({ user, onLogout }) => {
 
       const res = await fetch(`${API_BASE}/api/chat/upload/`, {
         method: 'POST',
-        credentials: 'include',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -292,7 +301,7 @@ const Dashboard = ({ user, onLogout }) => {
 
       const res = await fetch(`${API_BASE}/api/chat/profile/upload/`, {
         method: 'POST',
-        credentials: 'include',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -331,7 +340,7 @@ const Dashboard = ({ user, onLogout }) => {
 
       const res = await fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/picture/`, {
         method: 'POST',
-        credentials: 'include',
+        headers: authHeaders(),
         body: formData,
       });
 
@@ -359,7 +368,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const openNewChat = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/chat/users/`, { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/chat/users/`, { headers: authHeaders() });
       const data = await res.json();
       setAllUsers(data);
       setChatSearch('');
@@ -378,8 +387,7 @@ const Dashboard = ({ user, onLogout }) => {
     try {
       const res = await fetch(`${API_BASE}/api/chat/rooms/start/`, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ user_id: otherUser.id }),
       });
       const room = await res.json();
@@ -400,7 +408,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const openNewGroup = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/chat/users/`, { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/chat/users/`, { headers: authHeaders() });
       const data = await res.json();
       setAllUsers(data);
       setChatSearch('');
@@ -429,8 +437,7 @@ const Dashboard = ({ user, onLogout }) => {
     try {
       const res = await fetch(`${API_BASE}/api/chat/contacts/add/`, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ identifier: contactIdentifier.trim() }),
       });
 
@@ -467,8 +474,7 @@ const Dashboard = ({ user, onLogout }) => {
     try {
       const res = await fetch(`${API_BASE}/api/chat/profile/`, {
         method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify(profileForm),
       });
 
@@ -492,8 +498,7 @@ const Dashboard = ({ user, onLogout }) => {
     try {
       const res = await fetch(`${API_BASE}/api/chat/rooms/group/`, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ name: trimmedName, member_ids: selectedUserIds }),
       });
 
