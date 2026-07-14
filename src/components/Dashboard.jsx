@@ -14,7 +14,8 @@ const authJsonHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
 });
 
-const getSocketUrl = (roomName) => `${WS_BASE}/ws/chat/${roomName}/`;
+const getSocketUrl = (roomName) => `${WS_BASE}/ws/chat/${roomName}/?token=${localStorage.getItem('accessToken') || ''}`;
+const getNotifySocketUrl = () => `${WS_BASE}/ws/notify/?token=${localStorage.getItem('accessToken') || ''}`;
 
 const useIsMobile = (breakpoint = 768) => {
   const [isMobile, setIsMobile] = useState(
@@ -96,6 +97,8 @@ const Dashboard = ({ user, onLogout }) => {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [groupAvatarUploading, setGroupAvatarUploading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const notifyWsRef = useRef(null);
+  const activeChatRef = useRef(null);
   const pendingMessagesRef = useRef([]);
   const wsRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -103,6 +106,45 @@ const Dashboard = ({ user, onLogout }) => {
   const messagesEndRef = useRef(null);
   const groupAvatarInputRef = useRef(null);
   const isMobile = useIsMobile();
+
+  // Keep activeChatRef in sync so the notify handler can read it without stale closure
+  useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
+
+  // Notification WebSocket — stays open for the whole session
+  useEffect(() => {
+    const connect = () => {
+      const ws = new WebSocket(getNotifySocketUrl());
+      notifyWsRef.current = ws;
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type !== 'notification') return;
+        // Don't notify if the user already has that room open
+        if (activeChatRef.current?.id === data.room_id) return;
+        if (Notification.permission === 'granted') {
+          new Notification(data.sender, {
+            body: data.message || '📎 File',
+            icon: '/favicon.svg',
+          });
+        }
+        // Also bump the unread badge in the sidebar
+        setRooms((prev) => prev.map((r) =>
+          r.id === data.room_id ? { ...r, unread_count: (r.unread_count || 0) + 1, last_message: data.message } : r
+        ));
+      };
+
+      ws.onclose = () => setTimeout(connect, 3000);
+    };
+
+    // Request permission then connect
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then(connect);
+    } else {
+      connect();
+    }
+
+    return () => notifyWsRef.current?.close();
+  }, []);
 
   // Apply saved theme on mount
   useEffect(() => {
