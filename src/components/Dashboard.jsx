@@ -119,15 +119,13 @@ const Dashboard = ({ user, onLogout }) => {
       ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
         if (data.type !== 'notification') return;
-        // Don't notify if the user already has that room open
         if (activeChatRef.current?.id === data.room_id) return;
-        if (Notification.permission === 'granted') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification(data.sender, {
             body: data.message || '📎 File',
             icon: '/favicon.svg',
           });
         }
-        // Also bump the unread badge in the sidebar
         setRooms((prev) => prev.map((r) =>
           r.id === data.room_id ? { ...r, unread_count: (r.unread_count || 0) + 1, last_message: data.message } : r
         ));
@@ -136,9 +134,9 @@ const Dashboard = ({ user, onLogout }) => {
       ws.onclose = () => setTimeout(connect, 3000);
     };
 
-    // Request permission then connect
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().then(connect);
+    // Request permission if supported (not available on iOS Safari)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().finally(connect);
     } else {
       connect();
     }
