@@ -17,7 +17,7 @@ const AuthWrapper = ({ onAuthSuccess }) => {
   
   const handleSuccess = (authPayload) => {
     localStorage.setItem('accessToken', authPayload.access || authPayload.token || '');
-    onAuthSuccess(authPayload.user);
+    onAuthSuccess(authPayload.user || authPayload);
     navigate('/dashboard');
   };
 
