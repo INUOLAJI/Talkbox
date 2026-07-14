@@ -4,6 +4,8 @@ A real-time chat application built with React and Vite. Supports private messagi
 
 ## 🚀 Live App
 
+**Live URL:** [https://talkbox-pied.vercel.app](https://talkbox-pied.vercel.app)
+
 **Frontend Repo:** [https://github.com/INUOLAJU/Talkbox.git](https://github.com/INUOLAJU/Talkbox.git)
 
 ---
@@ -110,6 +112,8 @@ This frontend connects to the Talkbox Django backend.
 **Backend Repo:** [https://github.com/INUOLAJU/Talkbox-backend.git](https://github.com/INUOLAJU/Talkbox-backend.git)
 
 ---
+
+> Backend API: [https://talkbox-backend.onrender.com](https://talkbox-backend.onrender.com)
 
 ## 📄 License
 
