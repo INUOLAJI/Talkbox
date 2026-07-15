@@ -185,19 +185,11 @@ const Dashboard = ({ user, onLogout }) => {
     return () => clearInterval(interval);
   }, [fetchRooms]);
 
-  const flushPendingMessages = useCallback((socket) => {
-    const pending = pendingMessagesRef.current;
-    if (!pending.length) return;
-    pending.forEach((msg) => {
-      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
-    });
-    pendingMessagesRef.current = [];
-  }, []);
-
   useEffect(() => {
     if (!activeChat) return;
 
     setSocketStatus('connecting');
+    pendingMessagesRef.current = [];
     const socket = new WebSocket(getSocketUrl(activeChat.name));
     wsRef.current = socket;
     setMessages([]);
@@ -214,12 +206,10 @@ const Dashboard = ({ user, onLogout }) => {
             ? { ...r, last_message: data.message || (data.file_type === 'image' ? 'Photo' : 'File'), last_message_time: data.timestamp, unread_count: 0 }
             : r
         ));
-
-        // Keep last_read_at fresh so the next poll doesn't show a stale badge on the open chat
         fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/read/`, {
           method: 'POST',
           headers: authHeaders(),
-        }).catch((err) => console.error('Failed to mark room read:', err));
+        }).catch(() => {});
       } else if (data.type === 'presence') {
         setOnlineUsers((prev) => ({
           ...prev,
@@ -230,24 +220,25 @@ const Dashboard = ({ user, onLogout }) => {
 
     socket.onopen = () => {
       setSocketStatus('connected');
-      flushPendingMessages(socket);
+      // Drain any messages queued while connecting
+      pendingMessagesRef.current.forEach((msg) => socket.send(JSON.stringify(msg)));
+      pendingMessagesRef.current = [];
     };
     socket.onclose = () => setSocketStatus('disconnected');
-    socket.onerror = (err) => {
-      setSocketStatus('error');
-      console.error('WebSocket error:', err);
-    };
+    socket.onerror = () => setSocketStatus('error');
 
-    // Mark this room as read as soon as it's opened, and clear its badge locally
     fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/read/`, {
       method: 'POST',
       headers: authHeaders(),
-    }).catch((err) => console.error('Failed to mark room read:', err));
+    }).catch(() => {});
 
     setRooms((prev) => prev.map((r) => (r.id === activeChat.id ? { ...r, unread_count: 0 } : r)));
 
-    return () => socket.close();
-  }, [activeChat, flushPendingMessages]);
+    return () => {
+      pendingMessagesRef.current = [];
+      socket.close();
+    };
+  }, [activeChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -271,8 +262,7 @@ const Dashboard = ({ user, onLogout }) => {
     const payload = { type: 'text', message: text };
 
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      pendingMessagesRef.current = [...pendingMessagesRef.current, payload];
-      console.warn('WebSocket not connected yet — message queued');
+      pendingMessagesRef.current.push(payload);
       setMessageInput('');
       return;
     }
