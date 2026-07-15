@@ -74,6 +74,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [onlineUsers, setOnlineUsers] = useState({});
   const [uploading, setUploading] = useState(false);
   const [socketStatus, setSocketStatus] = useState('idle');
+  const [typingUsers, setTypingUsers] = useState({});
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatMode, setNewChatMode] = useState('chat');
   const [groupStep, setGroupStep] = useState(1);
@@ -107,6 +108,8 @@ const Dashboard = ({ user, onLogout }) => {
   const avatarInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const groupAvatarInputRef = useRef(null);
+  const typingTimerRef = useRef(null);
+  const isTypingRef = useRef(false);
   const isMobile = useIsMobile();
 
   // Wake Render from cold start before opening any WebSocket
@@ -233,10 +236,38 @@ const Dashboard = ({ user, onLogout }) => {
           socket.send(JSON.stringify({ type: 'pong' }));
           return;
         }
+        if (data.type === 'typing') {
+          setTypingUsers((prev) => {
+            if (!data.is_typing) {
+              const next = { ...prev };
+              delete next[data.user_id];
+              return next;
+            }
+            return { ...prev, [data.user_id]: data.full_name };
+          });
+          return;
+        }
         if (data.type === 'history') {
           setMessages(data.messages.map(formatMsg));
         } else if (data.type === 'message') {
-          setMessages((prev) => [...prev, formatMsg(data)]);
+          // Remove from typing when their real message arrives
+          setTypingUsers((prev) => {
+            const next = { ...prev };
+            delete next[data.sender_id];
+            return next;
+          });
+          setMessages((prev) => {
+            // Replace optimistic message if temp_id matches, otherwise append
+            if (data.temp_id) {
+              const idx = prev.findIndex((m) => m.id === `temp_${data.temp_id}`);
+              if (idx !== -1) {
+                const updated = [...prev];
+                updated[idx] = formatMsg(data);
+                return updated;
+              }
+            }
+            return [...prev, formatMsg(data)];
+          });
           setRooms((prev) => prev.map((r) =>
             r.id === activeChat.id
               ? { ...r, last_message: data.message || (data.file_type === 'image' ? 'Photo' : 'File'), last_message_time: data.timestamp, unread_count: 0 }
@@ -274,6 +305,7 @@ const Dashboard = ({ user, onLogout }) => {
     };
 
     setMessages([]);
+    setTypingUsers({});
     pendingMessagesRef.current = [];
     connect();
 
@@ -305,21 +337,60 @@ const Dashboard = ({ user, onLogout }) => {
     isMe: m.sender_id === user?.id,
   });
 
+  const sendTyping = useCallback((isTyping) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'typing', is_typing: isTyping }));
+    }
+  }, []);
+
+  const handleInputChange = (e) => {
+    setMessageInput(e.target.value);
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      sendTyping(true);
+    }
+    clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      sendTyping(false);
+    }, 2000);
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     const text = messageInput.trim();
     if (!text) return;
 
-    const payload = { type: 'text', message: text };
+    // Stop typing indicator immediately on send
+    clearTimeout(typingTimerRef.current);
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      sendTyping(false);
+    }
+
+    const tempId = Date.now();
+    const payload = { type: 'text', message: text, temp_id: tempId };
+
+    // Optimistic message — appears instantly
+    const optimistic = {
+      id: `temp_${tempId}`,
+      sender: user?.full_name || user?.email,
+      text,
+      fileUrl: null,
+      fileType: null,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      pending: true,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setMessageInput('');
 
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       pendingMessagesRef.current.push(payload);
-      setMessageInput('');
       return;
     }
 
     wsRef.current.send(JSON.stringify(payload));
-    setMessageInput('');
   };
 
   const handleFileUpload = useCallback(async (e) => {
@@ -791,7 +862,9 @@ const Dashboard = ({ user, onLogout }) => {
                         )}
 
                         {msg.text && <p className="m-0" style={{ wordBreak: 'break-word', color: 'var(--text-primary)' }}>{msg.text}</p>}
-                        <span className="d-block text-end text-muted mt-1" style={{ fontSize: '0.75em' }}>{msg.time}</span>
+                        <span className="d-block text-end text-muted mt-1" style={{ fontSize: '0.75em' }}>
+                          {msg.pending ? '🕐' : msg.time}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -814,7 +887,7 @@ const Dashboard = ({ user, onLogout }) => {
                       type="text"
                       placeholder="Type a message"
                       value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
+                      onChange={handleInputChange}
                       className="form-control"
                       style={styles.chatInputField}
                     />
