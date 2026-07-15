@@ -98,6 +98,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [groupAvatarUploading, setGroupAvatarUploading] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [serverReady, setServerReady] = useState(false);
   const notifyWsRef = useRef(null);
   const activeChatRef = useRef(null);
   const pendingMessagesRef = useRef([]);
@@ -108,11 +109,27 @@ const Dashboard = ({ user, onLogout }) => {
   const groupAvatarInputRef = useRef(null);
   const isMobile = useIsMobile();
 
+  // Wake Render from cold start before opening any WebSocket
+  useEffect(() => {
+    const wake = async () => {
+      for (let i = 0; i < 5; i++) {
+        try {
+          const res = await fetch(`${API_BASE}/ping/`);
+          if (res.ok) { setServerReady(true); return; }
+        } catch (_) {}
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      setServerReady(true); // give up after 15s and try anyway
+    };
+    wake();
+  }, []);
+
   // Keep activeChatRef in sync so the notify handler can read it without stale closure
   useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
 
   // Notification WebSocket — stays open for the whole session
   useEffect(() => {
+    if (!serverReady) return;
     let active = true;
     let attempts = 0;
     let reconnectTimer = null;
@@ -155,7 +172,7 @@ const Dashboard = ({ user, onLogout }) => {
       clearTimeout(reconnectTimer);
       notifyWsRef.current?.close();
     };
-  }, []);
+  }, [serverReady]);
 
   // Apply saved theme on mount
   useEffect(() => {
@@ -198,7 +215,7 @@ const Dashboard = ({ user, onLogout }) => {
   }, [fetchRooms]);
 
   useEffect(() => {
-    if (!activeChat) return;
+    if (!activeChat || !serverReady) return;
 
     let reconnectTimer = null;
     let attempts = 0;
@@ -272,7 +289,7 @@ const Dashboard = ({ user, onLogout }) => {
       pendingMessagesRef.current = [];
       wsRef.current?.close();
     };
-  }, [activeChat]);
+  }, [activeChat, serverReady]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -747,7 +764,12 @@ const Dashboard = ({ user, onLogout }) => {
                   </div>
                 </div>
 
-                {socketStatus !== 'connected' && (
+                {!serverReady && (
+                  <div style={styles.connectionBanner}>
+                    <strong>⏳ Waking up server...</strong>
+                  </div>
+                )}
+                {serverReady && socketStatus !== 'connected' && (
                   <div style={{ ...styles.connectionBanner, ...(socketStatus === 'error' ? styles.connectionBannerError : {}) }}>
                     <strong>{socketStatus === 'connecting' ? 'Connecting...' : socketStatus === 'error' ? 'Connection failed' : 'Offline'}</strong>
                   </div>
