@@ -31,6 +31,12 @@ function App() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const timeoutRef = useRef(null);
 
+  // Keep Render backend alive — ping every 10 min to prevent cold starts
+  useEffect(() => {
+    const id = setInterval(() => fetch(`${API_BASE}/ping/`).catch(() => {}), 10 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // Rehydrate user from stored token on hard refresh
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
