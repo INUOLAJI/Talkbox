@@ -113,7 +113,12 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Notification WebSocket — stays open for the whole session
   useEffect(() => {
+    let active = true;
+    let attempts = 0;
+    let reconnectTimer = null;
+
     const connect = () => {
+      if (!active) return;
       const ws = new WebSocket(getNotifySocketUrl());
       notifyWsRef.current = ws;
 
@@ -122,27 +127,34 @@ const Dashboard = ({ user, onLogout }) => {
         if (data.type !== 'notification') return;
         if (activeChatRef.current?.id === data.room_id) return;
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification(data.sender, {
-            body: data.message || '📎 File',
-            icon: '/favicon.svg',
-          });
+          new Notification(data.sender, { body: data.message || '📎 File', icon: '/favicon.svg' });
         }
         setRooms((prev) => prev.map((r) =>
           r.id === data.room_id ? { ...r, unread_count: (r.unread_count || 0) + 1, last_message: data.message } : r
         ));
       };
 
-      ws.onclose = () => setTimeout(connect, 3000);
+      ws.onclose = () => {
+        if (!active) return;
+        const delay = Math.min(1000 * 2 ** attempts, 10000);
+        attempts += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+
+      ws.onopen = () => { attempts = 0; };
     };
 
-    // Request permission if supported (not available on iOS Safari)
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission().finally(connect);
     } else {
       connect();
     }
 
-    return () => notifyWsRef.current?.close();
+    return () => {
+      active = false;
+      clearTimeout(reconnectTimer);
+      notifyWsRef.current?.close();
+    };
   }, []);
 
   // Apply saved theme on mount
@@ -188,55 +200,77 @@ const Dashboard = ({ user, onLogout }) => {
   useEffect(() => {
     if (!activeChat) return;
 
-    setSocketStatus('connecting');
-    pendingMessagesRef.current = [];
-    const socket = new WebSocket(getSocketUrl(activeChat.name));
-    wsRef.current = socket;
+    let reconnectTimer = null;
+    let attempts = 0;
+    let active = true;
+
+    const connect = () => {
+      if (!active) return;
+      setSocketStatus('connecting');
+      const socket = new WebSocket(getSocketUrl(activeChat.name));
+      wsRef.current = socket;
+
+      socket.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'ping') {
+          socket.send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+        if (data.type === 'history') {
+          setMessages(data.messages.map(formatMsg));
+        } else if (data.type === 'message') {
+          setMessages((prev) => [...prev, formatMsg(data)]);
+          setRooms((prev) => prev.map((r) =>
+            r.id === activeChat.id
+              ? { ...r, last_message: data.message || (data.file_type === 'image' ? 'Photo' : 'File'), last_message_time: data.timestamp, unread_count: 0 }
+              : r
+          ));
+          fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/read/`, {
+            method: 'POST',
+            headers: authHeaders(),
+          }).catch(() => {});
+        } else if (data.type === 'presence') {
+          setOnlineUsers((prev) => ({
+            ...prev,
+            [data.user_id]: { full_name: data.full_name, is_online: data.is_online },
+          }));
+        }
+      };
+
+      socket.onopen = () => {
+        attempts = 0;
+        setSocketStatus('connected');
+        pendingMessagesRef.current.forEach((msg) => socket.send(JSON.stringify(msg)));
+        pendingMessagesRef.current = [];
+      };
+
+      socket.onclose = () => {
+        if (!active) return;
+        setSocketStatus('disconnected');
+        // Exponential backoff: 1s, 2s, 4s, max 10s
+        const delay = Math.min(1000 * 2 ** attempts, 10000);
+        attempts += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+
+      socket.onerror = () => setSocketStatus('error');
+    };
+
     setMessages([]);
-
-    socket.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-
-      if (data.type === 'history') {
-        setMessages(data.messages.map(formatMsg));
-      } else if (data.type === 'message') {
-        setMessages((prev) => [...prev, formatMsg(data)]);
-        setRooms((prev) => prev.map((r) =>
-          r.id === activeChat.id
-            ? { ...r, last_message: data.message || (data.file_type === 'image' ? 'Photo' : 'File'), last_message_time: data.timestamp, unread_count: 0 }
-            : r
-        ));
-        fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/read/`, {
-          method: 'POST',
-          headers: authHeaders(),
-        }).catch(() => {});
-      } else if (data.type === 'presence') {
-        setOnlineUsers((prev) => ({
-          ...prev,
-          [data.user_id]: { full_name: data.full_name, is_online: data.is_online },
-        }));
-      }
-    };
-
-    socket.onopen = () => {
-      setSocketStatus('connected');
-      // Drain any messages queued while connecting
-      pendingMessagesRef.current.forEach((msg) => socket.send(JSON.stringify(msg)));
-      pendingMessagesRef.current = [];
-    };
-    socket.onclose = () => setSocketStatus('disconnected');
-    socket.onerror = () => setSocketStatus('error');
+    pendingMessagesRef.current = [];
+    connect();
 
     fetch(`${API_BASE}/api/chat/rooms/${activeChat.id}/read/`, {
       method: 'POST',
       headers: authHeaders(),
     }).catch(() => {});
-
     setRooms((prev) => prev.map((r) => (r.id === activeChat.id ? { ...r, unread_count: 0 } : r)));
 
     return () => {
+      active = false;
+      clearTimeout(reconnectTimer);
       pendingMessagesRef.current = [];
-      socket.close();
+      wsRef.current?.close();
     };
   }, [activeChat]);
 
